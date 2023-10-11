@@ -15,69 +15,34 @@ var iosQueue = Queue(topic: 4122)
 var androidQueue = Queue(topic: 4121)
 
 let errorText = "Необходимо выполнить команду в iOS или Android топике"
-let startText = "Сначала запустите бота"
-
-var isStart = false
-
-// Обработчик команды /start
-router["start"] = { context in
-    guard !isStart else {
-        reply(with: context, text: "Бот уже запущен")
-        return true
-    }
-    
-    isStart = true
-    reply(with: context, text: "Привет! Я бот для управления очередью")
-    return true
-}
-
-// Обработчик команды /stop
-router["stop"] = { context in
-    guard isStart else {
-        reply(with: context, text: "Бот не запущен")
-        return true
-    }
-    
-    isStart = false
-    reply(with: context, text: "Бот остановлен")
-    return false
-}
 
 // Обработчик команды /help
 router["help"] = { context in
     let helpText = """
     Доступные команды:
     
-    /start - Начать использование бота
-    /stop - Остановить бот
     /add - Добавить себя в очередь
     /list - Показать очередь
     /remove - Удалить себя из очереди
     /clear - Очистить очередь
     
     *\(errorText)
-
+    
     """
     
     reply(with: context, text: helpText)
     return true
 }
 
-
 // Обработчик команды /add
 router["add"] = { context in
-    guard isStart else {
-        reply(with: context, text: startText)
-        return true
-    }
-    
     guard let user = context.update.message?.from else { return true }
     
-    guard !iosQueue.queue.contains(user) || !androidQueue.queue.contains(user) else {
+    guard !iosQueue.queue.contains(user) && !androidQueue.queue.contains(user) else {
         reply(with: context, text: "Вы уже в очереди")
         return false
     }
-
+    
     var responseText: String = ""
     
     switch context.update.message?.replyToMessage?.messageId {
@@ -93,17 +58,12 @@ router["add"] = { context in
     }
     
     reply(with: context, text: responseText)
-
+    
     return true
 }
 
 // Обработчик команды /list
 router["list"] = { context in
-    guard isStart else {
-        reply(with: context, text: startText)
-        return true
-    }
-    
     var responseText: String
     
     switch context.update.message?.replyToMessage?.messageId {
@@ -124,11 +84,6 @@ router["list"] = { context in
 
 // Обработчик команды /remove
 router["remove"] = { context in
-    guard isStart else {
-        reply(with: context, text: startText)
-        return true
-    }
-    
     guard let user = context.update.message?.from else { return true }
     
     guard iosQueue.queue.contains(user) || androidQueue.queue.contains(user) else {
@@ -142,10 +97,12 @@ router["remove"] = { context in
     case iosQueue.topic:
         let indexToRemove = iosQueue.queue.firstIndex(of: user) ?? 0
         iosQueue.queue.remove(at: indexToRemove)
+        responseText = iosQueue.queue.isEmpty ? "Очередь пуста" : "В очереди:\n"
         responseText += getDeveloperList(with: iosQueue.queue)
     case androidQueue.topic:
         let indexToRemove = androidQueue.queue.firstIndex(of: user) ?? 0
         androidQueue.queue.remove(at: indexToRemove)
+        responseText = androidQueue.queue.isEmpty ? "Очередь пуста" : "В очереди:\n"
         responseText += getDeveloperList(with: androidQueue.queue)
     default:
         reply(with: context, text: errorText)
@@ -159,14 +116,9 @@ router["remove"] = { context in
 
 router["clear"] = { context in
     guard let admins = bot.getChatAdministratorsSync(chatId: .chat(context.chatId ?? 0)),
-          let username = context.message?.from?.username,
-            admins.map({ $0.user.username }).contains(username) else {
+          let id = context.message?.from?.id,
+          admins.map({ $0.user.id }).contains(id) else {
         reply(with: context, text: "Очищать очередь может только админ")
-        return true
-    }
-    
-    guard isStart else {
-        reply(with: context, text: startText)
         return true
     }
     
@@ -191,7 +143,7 @@ func reply(with context: Context, text: String) {
 
 func getDeveloperList(with queue: [User]) -> String {
     queue.enumerated()
-        .map { "\($0 + 1). \($1.username ?? "")\n" }
+        .map { "\($0 + 1). \($1.firstName)\n" }
         .joined(separator: "")
 }
 
@@ -199,7 +151,7 @@ print("Ready to accept commands")
 
 while let update = bot.nextUpdateSync() {
     print("--- update: \(update)")
-
+    
     try router.process(update: update)
 }
 
