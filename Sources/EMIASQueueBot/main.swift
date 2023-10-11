@@ -16,24 +16,6 @@ var androidQueue = Queue(topic: 4121)
 
 let errorText = "Необходимо выполнить команду в iOS или Android топике"
 
-// Обработчик команды /help
-router["help"] = { context in
-    let helpText = """
-    Доступные команды:
-    
-    /add - Добавить себя в очередь
-    /list - Показать очередь
-    /remove - Удалить себя из очереди
-    /clear - Очистить очередь
-    
-    *\(errorText)
-    
-    """
-    
-    reply(with: context, text: helpText)
-    return true
-}
-
 // Обработчик команды /add
 router["add"] = { context in
     guard let user = context.update.message?.from else { return true }
