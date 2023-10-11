@@ -6,13 +6,13 @@ let bot = TelegramBot(token: token)
 let router = Router(bot: bot)
 
 struct Queue {
-    var queue: [String: Int] = [:]
+    var queue: [User] = []
     var order = 1
     let topic: Int
 }
 
-var iosQueue = Queue(topic: 2)
-var androidQueue = Queue(topic: 3)
+var iosQueue = Queue(topic: 4122)
+var androidQueue = Queue(topic: 4121)
 
 let errorText = "Необходимо выполнить команду в iOS или Android топике"
 let startText = "Сначала запустите бота"
@@ -59,7 +59,7 @@ router["help"] = { context in
 
     """
     
-    context.respondAsync(helpText)
+    reply(with: context, text: helpText)
     return true
 }
 
@@ -71,31 +71,22 @@ router["add"] = { context in
         return true
     }
     
-    guard let username = context.update.message?.from?.firstName else { return true }
+    guard let user = context.update.message?.from else { return true }
     
-    guard iosQueue.queue[username] == nil || androidQueue.queue[username] == nil else {
+    guard !iosQueue.queue.contains(user) || !androidQueue.queue.contains(user) else {
         reply(with: context, text: "Вы уже в очереди")
         return false
     }
-    
-    var maxNumber: Int = 0
+
     var responseText: String = ""
     
     switch context.update.message?.replyToMessage?.messageId {
     case iosQueue.topic:
-        maxNumber = iosQueue.queue.values.max() ?? 0
-        iosQueue.queue[username] = maxNumber + 1
-        
-        for (name, number) in iosQueue.queue {
-            responseText += "\(number). \(name)\n"
-        }
+        iosQueue.queue.append(user)
+        responseText += getDeveloperList(with: iosQueue.queue)
     case androidQueue.topic:
-        maxNumber = androidQueue.queue.values.max() ?? 0
-        androidQueue.queue[username] = maxNumber + 1
-        
-        for (name, number) in androidQueue.queue {
-            responseText += "\(number). \(name)\n"
-        }
+        androidQueue.queue.append(user)
+        responseText += getDeveloperList(with: androidQueue.queue)
     default:
         reply(with: context, text: errorText)
         return true
@@ -118,16 +109,10 @@ router["list"] = { context in
     switch context.update.message?.replyToMessage?.messageId {
     case iosQueue.topic:
         responseText = iosQueue.queue.isEmpty ? "Очередь пуста" : "В очереди:\n"
-        
-        for (name, number) in iosQueue.queue {
-            responseText += "\(number). \(name)\n"
-        }
+        responseText += getDeveloperList(with: iosQueue.queue)
     case androidQueue.topic:
         responseText = androidQueue.queue.isEmpty ? "Очередь пуста" : "В очереди:\n"
-        
-        for (name, number) in androidQueue.queue {
-            responseText += "\(number). \(name)\n"
-        }
+        responseText += getDeveloperList(with: androidQueue.queue)
     default:
         reply(with: context, text: errorText)
         return true
@@ -144,9 +129,9 @@ router["remove"] = { context in
         return true
     }
     
-    guard let username = context.update.message?.from?.firstName else { return true }
+    guard let user = context.update.message?.from else { return true }
     
-    guard iosQueue.queue[username] != nil || androidQueue.queue[username] != nil else {
+    guard iosQueue.queue.contains(user) || androidQueue.queue.contains(user) else {
         reply(with: context, text: "Вы не в очереди")
         return false
     }
@@ -155,23 +140,13 @@ router["remove"] = { context in
     
     switch context.update.message?.replyToMessage?.messageId {
     case iosQueue.topic:
-        iosQueue.queue.removeValue(forKey: username)
-        // После удаления пересчитываем порядковые номера
-        let sortedDevelopers = iosQueue.queue.sorted(by: { $0.value < $1.value })
-        iosQueue.queue = Dictionary(uniqueKeysWithValues: sortedDevelopers.enumerated().map { ($1.key, $0 + 1) })
-        
-        for (name, number) in iosQueue.queue {
-            responseText += "\(number). \(name)\n"
-        }
+        let indexToRemove = iosQueue.queue.firstIndex(of: user) ?? 0
+        iosQueue.queue.remove(at: indexToRemove)
+        responseText += getDeveloperList(with: iosQueue.queue)
     case androidQueue.topic:
-        androidQueue.queue.removeValue(forKey: username)
-        // После удаления пересчитываем порядковые номера
-        let sortedDevelopers = androidQueue.queue.sorted(by: { $0.value < $1.value })
-        androidQueue.queue = Dictionary(uniqueKeysWithValues: sortedDevelopers.enumerated().map { ($1.key, $0 + 1) })
-        
-        for (name, number) in androidQueue.queue {
-            responseText += "\(number). \(name)\n"
-        }
+        let indexToRemove = androidQueue.queue.firstIndex(of: user) ?? 0
+        androidQueue.queue.remove(at: indexToRemove)
+        responseText += getDeveloperList(with: androidQueue.queue)
     default:
         reply(with: context, text: errorText)
         return true
@@ -197,9 +172,9 @@ router["clear"] = { context in
     
     switch context.update.message?.replyToMessage?.messageId {
     case iosQueue.topic:
-        iosQueue.queue = [:]
+        iosQueue.queue = []
     case androidQueue.topic:
-        androidQueue.queue = [:]
+        androidQueue.queue = []
     default:
         reply(with: context, text: errorText)
         return true
@@ -214,6 +189,12 @@ func reply(with context: Context, text: String) {
     context.respondAsync(text, disableNotification: true, replyToMessageId: context.update.message?.messageId, replyMarkup: .forceReply(.init(forceReply: true)))
 }
 
+func getDeveloperList(with queue: [User]) -> String {
+    queue.enumerated()
+        .map { "\($0 + 1). \($1.username ?? "")\n" }
+        .joined(separator: "")
+}
+
 print("Ready to accept commands")
 
 while let update = bot.nextUpdateSync() {
@@ -223,3 +204,9 @@ while let update = bot.nextUpdateSync() {
 }
 
 fatalError("Server stopped due to error: \(bot.lastError.unwrapOptional)")
+
+extension User: Equatable {
+    public static func == (lhs: TelegramBotSDK.User, rhs: TelegramBotSDK.User) -> Bool {
+        lhs.id == rhs.id
+    }
+}

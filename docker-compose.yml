@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - EMIAS_QUEUE_BOT_TOKEN= # Replace with your token or other env variables as needed.
+    restart: unless-stopped
