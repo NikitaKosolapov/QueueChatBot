@@ -12,7 +12,7 @@ let package = Package(
     )
     ],
     dependencies: [
-        .package(url: "https://github.com/Maxim-Lanskoy/telegram-bot-swift.git", branch: "master"),
+        .package(url: "https://github.com/zmeyc/telegram-bot-swift.git", from: "2.0.0"),
     ],
     targets: [
         .executableTarget(
