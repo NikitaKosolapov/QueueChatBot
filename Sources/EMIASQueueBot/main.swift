@@ -133,7 +133,11 @@ router["clear"] = { context in
 }
 
 func reply(with context: Context, text: String) {
-    context.respondAsync(text, disableNotification: true, replyToMessageId: context.update.message?.messageId, replyMarkup: .forceReply(.init(forceReply: true)))
+    context.respondAsync(
+        text,
+        disableNotification: true,
+        replyToMessageId: context.update.message?.messageId
+    )
 }
 
 func getDeveloperList(with queue: [User]) -> String {
