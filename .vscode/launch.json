@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:EMIASQueueBot}",
+            "name": "Debug EMIASQueueBot",
+            "target": "EMIASQueueBot",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug EMIASQueueBot"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:EMIASQueueBot}",
+            "name": "Release EMIASQueueBot",
+            "target": "EMIASQueueBot",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release EMIASQueueBot"
+        }
+    ]
+}
