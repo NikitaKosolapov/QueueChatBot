@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 import requests
 
 
-TOKEN = "8629402631:AAHCZBTJCNtnVt54dzN43LMtqmye2H1YQnw"
+TOKEN = os.environ.get("EMIAS_QUEUE_BOT_TOKEN")
 if not TOKEN:
     raise RuntimeError("Environment variable EMIAS_QUEUE_BOT_TOKEN is not set")
 
