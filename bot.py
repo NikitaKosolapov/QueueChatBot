@@ -238,11 +238,16 @@ def main() -> None:
                         username_to_remove = args[0][1:]
 
                     if not username_to_remove:
-                        send_message(
+                        reply_id = send_message(
                             chat_id,
                             "Нужно указать корректный @ник: /remove @username",
                             message_thread_id=thread_id,
                         )
+                        if message_id is not None:
+                            delete_message(chat_id, message_id)
+                        if reply_id is not None:
+                            time.sleep(3)
+                            delete_message(chat_id, reply_id)
                         continue
 
                     idx = next(
@@ -250,11 +255,16 @@ def main() -> None:
                         None,
                     )
                     if idx is None:
-                        send_message(
+                        reply_id = send_message(
                             chat_id,
                             f"Пользователь @{username_to_remove} не найден в очереди",
                             message_thread_id=thread_id,
                         )
+                        if message_id is not None:
+                            delete_message(chat_id, message_id)
+                        if reply_id is not None:
+                            time.sleep(3)
+                            delete_message(chat_id, reply_id)
                         continue
 
                     queue.pop(idx)
@@ -266,7 +276,12 @@ def main() -> None:
                     # Без аргументов — пользователь удаляет только себя из очереди текущего топика
                     idx = next((i for i, u in enumerate(queue) if u.get("id") == user_id), None)
                     if idx is None:
-                        send_message(chat_id, "Вы не в очереди", message_thread_id=thread_id)
+                        reply_id = send_message(chat_id, "Вы не в очереди", message_thread_id=thread_id)
+                        if message_id is not None:
+                            delete_message(chat_id, message_id)
+                        if reply_id is not None:
+                            time.sleep(3)
+                            delete_message(chat_id, reply_id)
                         continue
 
                     queue.pop(idx)
