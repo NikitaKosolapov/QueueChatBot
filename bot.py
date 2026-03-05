@@ -169,12 +169,34 @@ def main() -> None:
 
             if cmd == "add":
                 if user_in_any_queue(queues, user_id):
-                    send_message(chat_id, "Вы уже в очереди", message_thread_id=thread_id)
+                    # Отвечаем пользователю и затем удаляем и команду, и ответ
+                    reply_id = send_message(chat_id, "Вы уже в очереди", message_thread_id=thread_id)
                     if message_id is not None:
                         delete_message(chat_id, message_id)
+                    if reply_id is not None:
+                        # даём время прочитать сообщение
+                        time.sleep(1)
+                        delete_message(chat_id, reply_id)
                     continue
 
                 queue.append({"id": user_id, "first_name": first_name, "username": username})
+                save_queues(queues)
+                send_queue_message(chat_id, thread_id, thread_key, format_queue(queue))
+                if message_id is not None:
+                    delete_message(chat_id, message_id)
+
+            elif cmd == "add_first":
+                # Добавить себя на первую позицию в очереди текущего топика
+                if user_in_any_queue(queues, user_id):
+                    reply_id = send_message(chat_id, "Вы уже в очереди", message_thread_id=thread_id)
+                    if message_id is not None:
+                        delete_message(chat_id, message_id)
+                    if reply_id is not None:
+                        time.sleep(3)
+                        delete_message(chat_id, reply_id)
+                    continue
+
+                queue.insert(0, {"id": user_id, "first_name": first_name, "username": username})
                 save_queues(queues)
                 send_queue_message(chat_id, thread_id, thread_key, format_queue(queue))
                 if message_id is not None:
@@ -186,17 +208,71 @@ def main() -> None:
                     delete_message(chat_id, message_id)
 
             elif cmd == "remove":
-                # удаляем пользователя только из очереди текущего топика
-                idx = next((i for i, u in enumerate(queue) if u.get("id") == user_id), None)
-                if idx is None:
-                    send_message(chat_id, "Вы не в очереди", message_thread_id=thread_id)
-                    continue
+                # Если есть @ник и отправитель админ — удаляем по нику
+                if args:
+                    try:
+                        admin_ids = get_chat_admin_ids(chat_id)
+                    except Exception as e:
+                        print(f"Error in getChatAdministrators: {e}")
+                        send_message(chat_id, "Не удалось получить список админов", message_thread_id=thread_id)
+                        continue
 
-                queue.pop(idx)
-                save_queues(queues)
-                send_queue_message(chat_id, thread_id, thread_key, format_queue(queue))
-                if message_id is not None:
-                    delete_message(chat_id, message_id)
+                    if user_id not in admin_ids:
+                        send_message(chat_id, "Удалять из очереди по @нику может только админ", message_thread_id=thread_id)
+                        continue
+
+                    # Ищем @ник в сущностях для надёжности
+                    username_to_remove: Optional[str] = None
+                    entities = message.get("entities") or []
+                    for ent in entities:
+                        if ent.get("type") == "mention":
+                            offset_ent = ent.get("offset", 0)
+                            length_ent = ent.get("length", 0)
+                            mention_text = text[offset_ent : offset_ent + length_ent]
+                            if mention_text.startswith("@"):
+                                username_to_remove = mention_text[1:]
+                                break
+
+                    if not username_to_remove and args[0].startswith("@"):
+                        username_to_remove = args[0][1:]
+
+                    if not username_to_remove:
+                        send_message(
+                            chat_id,
+                            "Нужно указать корректный @ник: /remove @username",
+                            message_thread_id=thread_id,
+                        )
+                        continue
+
+                    idx = next(
+                        (i for i, u in enumerate(queue) if u.get("username") == username_to_remove),
+                        None,
+                    )
+                    if idx is None:
+                        send_message(
+                            chat_id,
+                            f"Пользователь @{username_to_remove} не найден в очереди",
+                            message_thread_id=thread_id,
+                        )
+                        continue
+
+                    queue.pop(idx)
+                    save_queues(queues)
+                    send_queue_message(chat_id, thread_id, thread_key, format_queue(queue))
+                    if message_id is not None:
+                        delete_message(chat_id, message_id)
+                else:
+                    # Без аргументов — пользователь удаляет только себя из очереди текущего топика
+                    idx = next((i for i, u in enumerate(queue) if u.get("id") == user_id), None)
+                    if idx is None:
+                        send_message(chat_id, "Вы не в очереди", message_thread_id=thread_id)
+                        continue
+
+                    queue.pop(idx)
+                    save_queues(queues)
+                    send_queue_message(chat_id, thread_id, thread_key, format_queue(queue))
+                    if message_id is not None:
+                        delete_message(chat_id, message_id)
 
             elif cmd == "clear":
                 try:
@@ -214,67 +290,6 @@ def main() -> None:
                 save_queues(queues)
                 # Показываем пустую очередь и удаляем старое сообщение с очередью
                 send_queue_message(chat_id, thread_id, thread_key, format_queue(queues[thread_key]))
-                if message_id is not None:
-                    delete_message(chat_id, message_id)
-
-            elif cmd == "remove_user":
-                try:
-                    admin_ids = get_chat_admin_ids(chat_id)
-                except Exception as e:
-                    print(f"Error in getChatAdministrators: {e}")
-                    send_message(chat_id, "Не удалось получить список админов", message_thread_id=thread_id)
-                    continue
-
-                if user_id not in admin_ids:
-                    send_message(chat_id, "Удалять из очереди может только админ", message_thread_id=thread_id)
-                    continue
-
-                if not args:
-                    send_message(
-                        chat_id,
-                        "Нужно указать @ник: /remove_user @username",
-                        message_thread_id=thread_id,
-                    )
-                    continue
-
-                # Ищем @ник в сущностях для надёжности
-                username_to_remove: Optional[str] = None
-                entities = message.get("entities") or []
-                for ent in entities:
-                    if ent.get("type") == "mention":
-                        offset_ent = ent.get("offset", 0)
-                        length_ent = ent.get("length", 0)
-                        mention_text = text[offset_ent : offset_ent + length_ent]
-                        if mention_text.startswith("@"):
-                            username_to_remove = mention_text[1:]
-                            break
-
-                if not username_to_remove and args[0].startswith("@"):
-                    username_to_remove = args[0][1:]
-
-                if not username_to_remove:
-                    send_message(
-                        chat_id,
-                        "Нужно указать корректный @ник: /remove_user @username",
-                        message_thread_id=thread_id,
-                    )
-                    continue
-
-                idx = next(
-                    (i for i, u in enumerate(queue) if u.get("username") == username_to_remove),
-                    None,
-                )
-                if idx is None:
-                    send_message(
-                        chat_id,
-                        f"Пользователь @{username_to_remove} не найден в очереди",
-                        message_thread_id=thread_id,
-                    )
-                    continue
-
-                queue.pop(idx)
-                save_queues(queues)
-                send_queue_message(chat_id, thread_id, thread_key, format_queue(queue))
                 if message_id is not None:
                     delete_message(chat_id, message_id)
 
