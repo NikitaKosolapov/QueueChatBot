@@ -111,28 +111,6 @@ def user_in_any_queue(queues: Dict[str, List[Dict[str, Any]]], user_id: int) -> 
     return False
 
 
-def user_with_username_in_any_queue(queues: Dict[str, List[Dict[str, Any]]], username: str) -> bool:
-    for q in queues.values():
-        if any(u.get("username") == username for u in q):
-            return True
-    return False
-
-
-def get_user_by_username(chat_id: int, username: str) -> Optional[Dict[str, Any]]:
-    """
-    Пытаемся получить реального пользователя по @username через getChatMember.
-    Возвращает dict с полями user или None, если не нашли/ошибка.
-    """
-    try:
-        data = api_call("getChatMember", {"chat_id": chat_id, "user_id": f"@{username}"})
-        member = data.get("result", {})
-        user = member.get("user")
-        return user
-    except Exception as e:
-        print(f"Error in getChatMember for @{username}: {e}")
-        return None
-
-
 def main() -> None:
     print("Python EMIASQueueBot started")
     offset: Optional[int] = None
@@ -190,83 +168,23 @@ def main() -> None:
             print(f"update in thread {thread_id}, cmd={cmd}, from={user_id}")
 
             if cmd == "add":
-                if args:
-                    # /add @username — добавить в очередь по нику (для миграции, доступно всем)
-                    username_to_add: Optional[str] = None
-                    entities = message.get("entities") or []
-                    for ent in entities:
-                        if ent.get("type") == "mention":
-                            offset_ent = ent.get("offset", 0)
-                            length_ent = ent.get("length", 0)
-                            mention_text = text[offset_ent : offset_ent + length_ent]
-                            if mention_text.startswith("@"):
-                                username_to_add = mention_text[1:]
-                                break
-
-                    if not username_to_add and args[0].startswith("@"):
-                        username_to_add = args[0][1:]
-
-                    if not username_to_add:
-                        reply_id = send_message(
-                            chat_id,
-                            "Нужно указать корректный @ник: /add @username",
-                            message_thread_id=thread_id,
-                        )
-                        if message_id is not None:
-                            delete_message(chat_id, message_id)
-                        if reply_id is not None:
-                            time.sleep(3)
-                            delete_message(chat_id, reply_id)
-                        continue
-
-                    # Не даём добавить, если этот @ник уже есть в какой-либо очереди
-                    if user_with_username_in_any_queue(queues, username_to_add):
-                        reply_id = send_message(
-                            chat_id,
-                            f"Пользователь @{username_to_add} уже в очереди",
-                            message_thread_id=thread_id,
-                        )
-                        if message_id is not None:
-                            delete_message(chat_id, message_id)
-                        if reply_id is not None:
-                            time.sleep(3)
-                            delete_message(chat_id, reply_id)
-                        continue
-
-                    # Пытаемся получить реальные id и имя пользователя по @нику
-                    user = get_user_by_username(chat_id, username_to_add) or {}
-                    display_name = user.get("first_name") or f"@{username_to_add}"
-                    user_id_to_store = user.get("id")
-
-                    queue.append(
-                        {
-                            "id": user_id_to_store,
-                            "first_name": display_name,
-                            "username": username_to_add,
-                        }
-                    )
-                    save_queues(queues)
-                    send_queue_message(chat_id, thread_id, thread_key, format_queue(queue))
+                # /add — добавить в очередь себя
+                if user_in_any_queue(queues, user_id):
+                    # Отвечаем пользователю и затем удаляем и команду, и ответ
+                    reply_id = send_message(chat_id, "Вы уже в очереди", message_thread_id=thread_id)
                     if message_id is not None:
                         delete_message(chat_id, message_id)
-                else:
-                    # /add — добавить в очередь себя
-                    if user_in_any_queue(queues, user_id):
-                        # Отвечаем пользователю и затем удаляем и команду, и ответ
-                        reply_id = send_message(chat_id, "Вы уже в очереди", message_thread_id=thread_id)
-                        if message_id is not None:
-                            delete_message(chat_id, message_id)
-                        if reply_id is not None:
-                            # даём время прочитать сообщение
-                            time.sleep(1)
-                            delete_message(chat_id, reply_id)
-                        continue
+                    if reply_id is not None:
+                        # даём время прочитать сообщение
+                        time.sleep(1)
+                        delete_message(chat_id, reply_id)
+                    continue
 
-                    queue.append({"id": user_id, "first_name": first_name, "username": username})
-                    save_queues(queues)
-                    send_queue_message(chat_id, thread_id, thread_key, format_queue(queue))
-                    if message_id is not None:
-                        delete_message(chat_id, message_id)
+                queue.append({"id": user_id, "first_name": first_name, "username": username})
+                save_queues(queues)
+                send_queue_message(chat_id, thread_id, thread_key, format_queue(queue))
+                if message_id is not None:
+                    delete_message(chat_id, message_id)
 
             elif cmd == "add_first":
                 # Добавить себя на первую позицию в очереди текущего топика
