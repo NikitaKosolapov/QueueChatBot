@@ -6,13 +6,16 @@ from typing import Any, Dict, List, Optional
 import requests
 
 
-TOKEN = os.environ.get("EMIAS_QUEUE_BOT_TOKEN")
+TOKEN = "8629402631:AAHCZBTJCNtnVt54dzN43LMtqmye2H1YQnw"
 if not TOKEN:
     raise RuntimeError("Environment variable EMIAS_QUEUE_BOT_TOKEN is not set")
 
 BASE_URL = f"https://api.telegram.org/bot{TOKEN}/"
 
 QUEUES_FILE = "queues.json"  # thread_id -> [users]
+
+# thread_id (str) -> message_id последнего сообщения с очередью в этом топике
+LAST_QUEUE_MESSAGES: Dict[str, int] = {}
 
 
 def api_call(method: str, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -37,7 +40,7 @@ def send_message(
     text: str,
     reply_to_message_id: Optional[int] = None,
     message_thread_id: Optional[int] = None,
-) -> None:
+) -> Optional[int]:
     params: Dict[str, Any] = {
         "chat_id": chat_id,
         "text": text,
@@ -47,7 +50,31 @@ def send_message(
         params["reply_to_message_id"] = reply_to_message_id
     if message_thread_id is not None:
         params["message_thread_id"] = message_thread_id
-    api_call("sendMessage", params)
+    data = api_call("sendMessage", params)
+    result = data.get("result")
+    if isinstance(result, dict):
+        return result.get("message_id")
+    return None
+
+
+def send_queue_message(chat_id: int, thread_id: int, thread_key: str, text: str) -> None:
+    """
+    Отправляет сообщение с очередью и удаляет предыдущее сообщение очереди в этом топике.
+    """
+    new_id = send_message(chat_id, text, message_thread_id=thread_id)
+    last_id = LAST_QUEUE_MESSAGES.get(thread_key)
+    if last_id is not None and new_id is not None and last_id != new_id:
+        delete_message(chat_id, last_id)
+    if new_id is not None:
+        LAST_QUEUE_MESSAGES[thread_key] = new_id
+
+
+def delete_message(chat_id: int, message_id: int) -> None:
+    try:
+        api_call("deleteMessage", {"chat_id": chat_id, "message_id": message_id})
+    except Exception as e:
+        # Не критично, если удалить не получилось
+        print(f"Error deleting message {message_id} in chat {chat_id}: {e}")
 
 
 def get_chat_admin_ids(chat_id: int) -> List[int]:
@@ -126,6 +153,7 @@ def main() -> None:
             user_id = from_user.get("id")
             first_name = from_user.get("first_name", "")
             username = from_user.get("username")
+            message_id = message.get("message_id")
 
             # Разбор команды: /cmd или /cmd@BotName
             parts = text.split()
@@ -142,14 +170,20 @@ def main() -> None:
             if cmd == "add":
                 if user_in_any_queue(queues, user_id):
                     send_message(chat_id, "Вы уже в очереди", message_thread_id=thread_id)
+                    if message_id is not None:
+                        delete_message(chat_id, message_id)
                     continue
 
                 queue.append({"id": user_id, "first_name": first_name, "username": username})
                 save_queues(queues)
-                send_message(chat_id, format_queue(queue), message_thread_id=thread_id)
+                send_queue_message(chat_id, thread_id, thread_key, format_queue(queue))
+                if message_id is not None:
+                    delete_message(chat_id, message_id)
 
             elif cmd == "list":
-                send_message(chat_id, format_queue(queue), message_thread_id=thread_id)
+                send_queue_message(chat_id, thread_id, thread_key, format_queue(queue))
+                if message_id is not None:
+                    delete_message(chat_id, message_id)
 
             elif cmd == "remove":
                 # удаляем пользователя только из очереди текущего топика
@@ -160,7 +194,9 @@ def main() -> None:
 
                 queue.pop(idx)
                 save_queues(queues)
-                send_message(chat_id, format_queue(queue), message_thread_id=thread_id)
+                send_queue_message(chat_id, thread_id, thread_key, format_queue(queue))
+                if message_id is not None:
+                    delete_message(chat_id, message_id)
 
             elif cmd == "clear":
                 try:
@@ -176,7 +212,10 @@ def main() -> None:
 
                 queues[thread_key] = []
                 save_queues(queues)
-                send_message(chat_id, "Очередь очищена", message_thread_id=thread_id)
+                # Показываем пустую очередь и удаляем старое сообщение с очередью
+                send_queue_message(chat_id, thread_id, thread_key, format_queue(queues[thread_key]))
+                if message_id is not None:
+                    delete_message(chat_id, message_id)
 
             elif cmd == "remove_user":
                 try:
@@ -235,7 +274,9 @@ def main() -> None:
 
                 queue.pop(idx)
                 save_queues(queues)
-                send_message(chat_id, format_queue(queue), message_thread_id=thread_id)
+                send_queue_message(chat_id, thread_id, thread_key, format_queue(queue))
+                if message_id is not None:
+                    delete_message(chat_id, message_id)
 
             else:
                 # Неизвестная команда — игнорируем или можно ответить help'ом
