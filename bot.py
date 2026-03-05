@@ -118,6 +118,21 @@ def user_with_username_in_any_queue(queues: Dict[str, List[Dict[str, Any]]], use
     return False
 
 
+def get_user_by_username(chat_id: int, username: str) -> Optional[Dict[str, Any]]:
+    """
+    Пытаемся получить реального пользователя по @username через getChatMember.
+    Возвращает dict с полями user или None, если не нашли/ошибка.
+    """
+    try:
+        data = api_call("getChatMember", {"chat_id": chat_id, "user_id": f"@{username}"})
+        member = data.get("result", {})
+        user = member.get("user")
+        return user
+    except Exception as e:
+        print(f"Error in getChatMember for @{username}: {e}")
+        return None
+
+
 def main() -> None:
     print("Python EMIASQueueBot started")
     offset: Optional[int] = None
@@ -218,11 +233,15 @@ def main() -> None:
                             delete_message(chat_id, reply_id)
                         continue
 
-                    # Мы не знаем реальный id и имя, поэтому используем @ник как отображаемое имя
+                    # Пытаемся получить реальные id и имя пользователя по @нику
+                    user = get_user_by_username(chat_id, username_to_add) or {}
+                    display_name = user.get("first_name") or f"@{username_to_add}"
+                    user_id_to_store = user.get("id")
+
                     queue.append(
                         {
-                            "id": None,
-                            "first_name": f"@{username_to_add}",
+                            "id": user_id_to_store,
+                            "first_name": display_name,
                             "username": username_to_add,
                         }
                     )
