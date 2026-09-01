@@ -1,14 +1,14 @@
 version: "3.9"
 
 services:
-  emias-queue-bot:
+  queue-bot:
     image: python:3.11-slim
     working_dir: /app
     volumes:
       - ./:/app
     environment:
       # Задай токен через переменные окружения или .env:
-      # EMIAS_QUEUE_BOT_TOKEN=123456:ABC...
-      - EMIAS_QUEUE_BOT_TOKEN=${EMIAS_QUEUE_BOT_TOKEN}
+      # QUEUE_BOT_TOKEN=123456:ABC...
+      - QUEUE_BOT_TOKEN=${QUEUE_BOT_TOKEN}
     command: >
       sh -c "pip install -r requirements.txt && python bot.py"
