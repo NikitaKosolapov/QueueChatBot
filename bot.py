@@ -6,9 +6,9 @@ from typing import Any, Dict, List, Optional
 import requests
 
 
-TOKEN = os.environ.get("EMIAS_QUEUE_BOT_TOKEN")
+TOKEN = os.environ.get("QUEUE_BOT_TOKEN")
 if not TOKEN:
-    raise RuntimeError("Environment variable EMIAS_QUEUE_BOT_TOKEN is not set")
+    raise RuntimeError("Environment variable QUEUE_BOT_TOKEN is not set")
 
 BASE_URL = f"https://api.telegram.org/bot{TOKEN}/"
 
@@ -112,7 +112,7 @@ def user_in_any_queue(queues: Dict[str, List[Dict[str, Any]]], user_id: int) -> 
 
 
 def main() -> None:
-    print("Python EMIASQueueBot started")
+    print("Python QueueBot started")
     offset: Optional[int] = None
     queues: Dict[str, List[Dict[str, Any]]] = load_queues()
 
