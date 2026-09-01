@@ -4,21 +4,21 @@
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:EMIASQueueBot}",
-            "name": "Debug EMIASQueueBot",
-            "target": "EMIASQueueBot",
+            "cwd": "${workspaceFolder:QueueBot}",
+            "name": "Debug QueueBot",
+            "target": "QueueBot",
             "configuration": "debug",
-            "preLaunchTask": "swift: Build Debug EMIASQueueBot"
+            "preLaunchTask": "swift: Build Debug QueueBot"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:EMIASQueueBot}",
-            "name": "Release EMIASQueueBot",
-            "target": "EMIASQueueBot",
+            "cwd": "${workspaceFolder:QueueBot}",
+            "name": "Release QueueBot",
+            "target": "QueueBot",
             "configuration": "release",
-            "preLaunchTask": "swift: Build Release EMIASQueueBot"
+            "preLaunchTask": "swift: Build Release QueueBot"
         }
     ]
 }
