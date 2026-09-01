@@ -1,4 +1,4 @@
-## EMIASQueueBot (Python-версия)
+## QueueBot (Python-версия)
 
 Этот бот управляет очередью разработчиков в Telegram‑канале с топиками (iOS / Android).  
 Очередь **отдельная для каждого топика**. Данные хранятся в файле `queues.json` рядом с ботом.
@@ -15,7 +15,7 @@
 2. Войти в директорию проекта:
 
 ```bash
-cd /путь/до/EMIASQueueBot
+cd /путь/до/QueueBot
 ```
 
 3. Создать и активировать виртуальное окружение Python:
@@ -34,7 +34,7 @@ pip install -r requirements.txt
 5. Задать переменную окружения с токеном бота:
 
 ```bash
-export EMIAS_QUEUE_BOT_TOKEN=ТОКЕН_ОТ_BOTFATHER
+export QUEUE_BOT_TOKEN=ТОКЕН_ОТ_BOTFATHER
 ```
 
 > Токен вида `123456789:ABCDEF...`. Не коммитить его в git.
@@ -45,14 +45,14 @@ export EMIAS_QUEUE_BOT_TOKEN=ТОКЕН_ОТ_BOTFATHER
 
 ```bash
 source .venv/bin/activate      # если ещё не активировано
-export EMIAS_QUEUE_BOT_TOKEN=ТОКЕН_ОТ_BOTFATHER
+export QUEUE_BOT_TOKEN=ТОКЕН_ОТ_BOTFATHER
 python3 bot.py
 ```
 
 В терминале должно появиться сообщение:
 
 ```text
-Python EMIASQueueBot started
+Python QueueBot started
 ```
 
 Бот будет работать, пока запущен этот процесс (можно остановить `Ctrl + C`).
@@ -105,9 +105,9 @@ Python EMIASQueueBot started
 На сервере/VPS бота можно запускать не в интерактивном терминале, а через systemd, tmux, screen или другой менеджер процессов. Основная команда остаётся той же:
 
 ```bash
-cd /путь/до/EMIASQueueBot
+cd /путь/до/QueueBot
 source .venv/bin/activate
-export EMIAS_QUEUE_BOT_TOKEN=ТОКЕН_ОТ_BOTFATHER
+export QUEUE_BOT_TOKEN=ТОКЕН_ОТ_BOTFATHER
 python3 bot.py
 ```
 
